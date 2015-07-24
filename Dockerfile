@@ -8,7 +8,7 @@ ADD jenkins-slave.sh /usr/local/bin/jenkins-slave.sh
 
 RUN bash -c "if ! [ -e /usr/lib/apt/methods/https ]; then apt-get update && apt-get install -y apt-transport-https; fi"
 
-RUN useradd -c "Jenkins Slave user" -d /home/jenkins -m jenkins \
+RUN useradd -c "Jenkins Slave user" -d /home/jenkins -u 233 -m jenkins \
  && curl --create-dirs -sSLo /usr/share/jenkins/swarm-client-$JENKINS_SWARM_VERSION-jar-with-dependencies.jar \
     http://maven.jenkins-ci.org/content/repositories/releases/org/jenkins-ci/plugins/swarm-client/$JENKINS_SWARM_VERSION/swarm-client-$JENKINS_SWARM_VERSION-jar-with-dependencies.jar \
  && chmod 755 /usr/share/jenkins \
