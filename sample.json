@@ -1,0 +1,74 @@
+{
+    "Resources": {
+        "InstanceSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Enable SSH access on the configured port",
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "-1",
+                        "IpProtocol": "icmp",
+                        "ToPort": "-1"
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    }
+                ]
+            },
+            "Type": "AWS::EC2::SecurityGroup"
+        },
+        "JenkinsSlaveGroup": {
+            "Properties": {
+                "AvailabilityZones": [
+                    "eu-west-1c"
+                ],
+                "Cooldown": 300,
+                "DesiredCapacity": 1,
+                "HealthCheckGracePeriod": 180,
+                "HealthCheckType": "EC2",
+                "LaunchConfigurationName": {
+                    "Ref": "LaunchConfig"
+                },
+                "MaxSize": 1,
+                "MinSize": 0
+            },
+            "Type": "AWS::AutoScaling::AutoScalingGroup",
+            "UpdatePolicy": {
+                "AutoScalingRollingUpdate": {
+                    "MaxBatchSize": "1",
+                    "MinInstancesInService": "0",
+                    "PauseTime": "PT10M"
+                }
+            }
+        },
+        "LaunchConfig": {
+            "Properties": {
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/xvdd",
+                        "Ebs": {
+                            "VolumeSize": "50",
+                            "VolumeType": "gp2"
+                        }
+                    }
+                ],
+                "ImageId": "ami-52d29925",
+                "InstanceType": "m3.medium",
+                "KeyName": "mykey",
+                "SecurityGroups": [
+                    {
+                        "Ref": "InstanceSecurityGroup"
+                    }
+                ],
+                "SpotPrice": "0.02",
+                "UserData": {
+                    "Fn::Base64": "#cloud-config\n\nssh_authorized_keys:\n  - [your ssh key here]\n\nwrite_files:\n  - path: /root/.dockercfg\n    owner: root:root\n    permissions: 0644\n    content: |\n      {\n        \"https://index.docker.io/v1/\": {\n          \"auth\": \"mypassword\",\n          \"email\": \"mail@example.com\"\n        }\n      }\n\ncoreos:\n  units:\n    - name: format-ephemeral.service\n      runtime: true\n      command: start\n      content: |\n        [Unit]\n        Description=Format the EBS volume\n\n        [Service]\n        Type=oneshot\n        RemainAfterExit=yes\n        ExecStart=/usr/sbin/wipefs -f /dev/xvdd\n        ExecStart=/usr/sbin/mkfs.btrfs -f /dev/xvdd\n    - name: var-lib-docker.mount\n      command: start\n      content: |\n        [Unit]\n        Description=Mount ephemeral to /var/lib/docker\n        Requires=format-ephemeral.service\n        After=format-ephemeral.service\n        Before=docker.service\n\n        [Mount]\n        What=/dev/xvdd\n        Where=/var/lib/docker\n        Type=btrfs\n    - name: jenkins-swarm.service\n      command: start\n      content: |\n        [Unit]\n        Description=Jenkins Swarm Slave\n        Author=Knut Ahlers\n        After=docker.service\n\n        [Service]\n        Restart=always\n        ExecStartPre=mkdir -p /home/jenkins\n        ExecStartPre=/usr/bin/docker pull luzifer/jenkins-swarm-docker\n        ExecStartPre=-/usr/bin/docker rm -f jenkins_slave\n        ExecStart=/usr/bin/docker run --name=jenkins_slave -v /home/jenkins:/home/jenkins         -v /root/.dockercfg:/home/jenkins/.dockercfg         -v /var/run/docker.sock:/var/run/docker.sock luzifer/jenkins-swarm-docker         -master \"http://my.jenkins.example.com/\" -executors 2 -username \"myuser\" -password \"mypass\" -labels \"docker\"\n        ExecStop=/usr/bin/docker rm -f jenkins_slave\n"
+                }
+            },
+            "Type": "AWS::AutoScaling::LaunchConfiguration"
+        }
+    }
+}
