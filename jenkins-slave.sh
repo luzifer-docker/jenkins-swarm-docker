@@ -2,6 +2,8 @@
 
 # Original from carlossg (https://github.com/carlossg/jenkins-swarm-slave-docker)
 
+sudo chown jenkins:jenkins /home/jenkins
+
 # if `docker run` first argument start with `-` the user is passing jenkins swarm launcher arguments
 if [[ $# -lt 1 ]] || [[ "$1" == "-"* ]]; then
 
