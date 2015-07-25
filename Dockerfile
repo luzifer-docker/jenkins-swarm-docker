@@ -2,7 +2,7 @@ FROM java:8-jre
 
 MAINTAINER Knut Ahlers <knut@ahlers.me>
 
-ENV JENKINS_SWARM_VERSION 1.24
+ENV JENKINS_SWARM_VERSION 1.26
 
 ADD jenkins-slave.sh /usr/local/bin/jenkins-slave.sh
 
